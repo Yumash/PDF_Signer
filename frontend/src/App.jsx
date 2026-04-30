@@ -175,7 +175,7 @@ export default function App() {
               <div className="flex gap-2 ml-4">
                 <button onClick={() => setMode(mode === 'sign' ? 'view' : 'sign')}
                   className={`px-3 py-1 rounded text-sm ${mode === 'sign' ? 'bg-green-600 text-white' : 'border hover:bg-gray-100'}`}>
-                  {mode === 'sign' ? '✎ Режим подписи' : 'Подписать'}
+                  {mode === 'sign' ? '✎ Режим подписи' : 'Разместить свою подпись'}
                 </button>
                 {mode === 'sign' && (
                   <button onClick={handleExport} disabled={exporting}
