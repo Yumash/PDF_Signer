@@ -93,6 +93,7 @@ export function CanvasEditor({ pageDataUrl, pageWidth = 794, pageHeight = 1123, 
   // Drop signature from library — load image to get natural aspect ratio, cap at 25% page width
   const handleDrop = useCallback((e) => {
     e.preventDefault()
+    e.stopPropagation()  // prevent bubbling to App's file-drop handler
     const data = e.dataTransfer.getData('application/signature')
     if (!data) return
     const sig = JSON.parse(data)

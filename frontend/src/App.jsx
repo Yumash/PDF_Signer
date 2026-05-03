@@ -34,6 +34,9 @@ export default function App() {
   }
   const handleDrop = (e) => {
     e.preventDefault()
+    // Ignore drops that came from the signature library (CanvasEditor stops propagation,
+    // but guard here too in case the drop lands outside the canvas area)
+    if (e.dataTransfer.types.includes('application/signature')) return
     const f = e.dataTransfer?.files?.[0]
     if (f) { sourceFileRef.current = f; doc.loadFile(f); setMode('view') }
   }

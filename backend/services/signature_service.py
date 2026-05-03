@@ -3,6 +3,7 @@ import os
 import uuid
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
 
 
@@ -11,21 +12,44 @@ SIGNATURES_DIR = DATA_DIR / "signatures"
 
 SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".tiff", ".tif", ".webp"}
 
-# Pixels with R,G,B all above this value are treated as background (white paper).
-_BG_THRESHOLD = 240
 
+def _remove_bg_adaptive(img: Image.Image, darkness_threshold: int = 35) -> Image.Image:
+    """Remove background from a signature image.
 
-def _remove_bg_threshold(img: Image.Image) -> Image.Image:
-    """Replace near-white pixels with transparency. Works well for dark ink on white paper."""
+    Estimates paper luminance from corner pixels, then keeps only pixels that are
+    significantly darker than the paper (= ink). Crops to the ink bounding box so the
+    resulting PNG has no transparent padding and scales correctly on the canvas.
+    """
     rgba = img.convert("RGBA")
-    pixels = rgba.load()
-    w, h = rgba.size
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = pixels[x, y]
-            if r >= _BG_THRESHOLD and g >= _BG_THRESHOLD and b >= _BG_THRESHOLD:
-                pixels[x, y] = (r, g, b, 0)
-    return rgba
+    arr = np.array(rgba, dtype=np.float32)
+    h, w = arr.shape[:2]
+
+    # Sample corners to estimate background luminance
+    sample = max(1, min(20, w // 6, h // 6))
+    corners = np.concatenate(
+        [
+            arr[:sample, :sample, :3].reshape(-1, 3),
+            arr[:sample, w - sample :, :3].reshape(-1, 3),
+            arr[h - sample :, :sample, :3].reshape(-1, 3),
+            arr[h - sample :, w - sample :, :3].reshape(-1, 3),
+        ]
+    )
+    bg = np.median(corners, axis=0)
+    bg_lum = 0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]
+
+    # Pixel luminance
+    lum = 0.299 * arr[:, :, 0] + 0.587 * arr[:, :, 1] + 0.114 * arr[:, :, 2]
+
+    # Keep pixels darker than background by at least darkness_threshold
+    arr[:, :, 3] = np.where(bg_lum - lum >= darkness_threshold, 255, 0)
+
+    result = Image.fromarray(arr.astype(np.uint8), "RGBA")
+
+    # Crop to ink bounding box — removes transparent padding, fixes canvas scaling
+    bbox = result.getbbox()
+    if bbox:
+        result = result.crop(bbox)
+    return result
 
 
 def get_signatures_dir() -> Path:
@@ -48,7 +72,7 @@ def save_signature(filename: str, data: bytes, remove_bg: bool = True) -> dict:
 
     img = Image.open(io.BytesIO(data))
     if remove_bg:
-        img = _remove_bg_threshold(img)
+        img = _remove_bg_adaptive(img)
     img = img.convert("RGBA")
 
     sig_id = str(uuid.uuid4())

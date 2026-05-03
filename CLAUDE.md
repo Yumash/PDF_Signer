@@ -122,6 +122,7 @@ Always respond in the user's language.
 
 <!-- DYNAMIC:START -->
 ## Current State
-Session: #2 (active) | Branch: main | Version: 1.3.5
-Tasks: 12/12 done, 0 active, 0 blocked
+Session: #3 (active) | Branch: main | Version: 1.3.5
+Tasks: 14/17 done, 1 active, 0 blocked
+Active: fix-rembg-destroying-handwriting-signatures
 <!-- DYNAMIC:END -->
