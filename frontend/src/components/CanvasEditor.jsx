@@ -69,12 +69,14 @@ function SignatureNode({ layer, isSelected, onSelect, onChange, imageUrl }) {
   )
 }
 
-export function CanvasEditor({ pageDataUrl, pageWidth = 794, pageHeight = 1123, imageUrl, onLayersChange }) {
+export function CanvasEditor({ pageDataUrl, pageWidth = 794, pageHeight = 1123, imageUrl, onLayersChange, onUndo, onRedo, onUndoStateChange }) {
   const { layers, addSignature, updateLayer, removeLayer, undo, redo, canUndo, canRedo } = useCanvas()
   const [selectedId, setSelectedId] = useState(null)
   const stageRef = useRef(null)
 
   useEffect(() => { onLayersChange?.(layers) }, [layers, onLayersChange])
+
+  useEffect(() => { onUndoStateChange?.({ undo, redo, canUndo, canRedo }) }, [canUndo, canRedo, undo, redo, onUndoStateChange])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -152,10 +154,6 @@ export function CanvasEditor({ pageDataUrl, pageWidth = 794, pageHeight = 1123, 
       {/* Properties panel */}
       <div className="w-52 bg-white border-l flex flex-col text-xs">
         <div className="px-3 py-2 border-b font-medium text-gray-700">Свойства</div>
-        <div className="flex gap-1 px-2 py-2 border-b">
-          <button onClick={undo} disabled={!canUndo} className="flex-1 py-1 border rounded disabled:opacity-40 hover:bg-gray-50">↩ Undo</button>
-          <button onClick={redo} disabled={!canRedo} className="flex-1 py-1 border rounded disabled:opacity-40 hover:bg-gray-50">↪ Redo</button>
-        </div>
 
         {selectedLayer ? (
           <div className="px-3 py-2 flex flex-col gap-2">

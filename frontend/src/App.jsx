@@ -27,6 +27,9 @@ export default function App() {
   const canvasLayersRef = useRef([])
   const sourceFileRef = useRef(null)
   const sigInputRef = useRef(null)
+  const [undoState, setUndoState] = useState({ undo: null, redo: null, canUndo: false, canRedo: false })
+
+  const handleUndoStateChange = useCallback((state) => setUndoState(state), [])
 
   const handleFileInput = (e) => {
     const f = e.target.files?.[0]
@@ -181,10 +184,16 @@ export default function App() {
                   {mode === 'sign' ? '✎ Режим подписи' : 'Разместить свою подпись'}
                 </button>
                 {mode === 'sign' && (
-                  <button onClick={handleExport} disabled={exporting}
-                    className="px-3 py-1 rounded text-sm bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50">
-                    {exporting ? 'Экспорт…' : '💾 Вставить и сохранить'}
-                  </button>
+                  <>
+                    <button onClick={undoState.undo} disabled={!undoState.canUndo}
+                      className="px-2 py-1 border rounded text-sm disabled:opacity-40 hover:bg-gray-100">↩ Undo</button>
+                    <button onClick={undoState.redo} disabled={!undoState.canRedo}
+                      className="px-2 py-1 border rounded text-sm disabled:opacity-40 hover:bg-gray-100">↪ Redo</button>
+                    <button onClick={handleExport} disabled={exporting}
+                      className="px-3 py-1 rounded text-sm bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50">
+                      {exporting ? 'Экспорт…' : '💾 Вставить и сохранить'}
+                    </button>
+                  </>
                 )}
               </div>
             </>
@@ -220,6 +229,7 @@ export default function App() {
               pageHeight={1123}
               imageUrl={sigs.imageUrl}
               onLayersChange={handleLayersChange}
+              onUndoStateChange={handleUndoStateChange}
             />
           )}
         </main>
