@@ -45,11 +45,20 @@ def _remove_bg_adaptive(img: Image.Image, darkness_threshold: int = 35) -> Image
 
     result = Image.fromarray(arr.astype(np.uint8), "RGBA")
 
-    # Crop to ink bounding box — removes transparent padding, fixes canvas scaling
-    bbox = result.getbbox()
-    if bbox:
-        result = result.crop(bbox)
-    return result
+    # Crop to the ink bounding box using the ALPHA channel specifically.
+    # result.getbbox() inspects all bands, so white background pixels (RGB=255,
+    # alpha=0) count as non-zero and the crop would never trim a white-paper
+    # scan. The alpha channel marks ink (255) vs background (0), so its bbox is
+    # the true ink extent.
+    bbox = result.getchannel("A").getbbox()
+    if bbox is None:
+        # No pixel survived the darkness threshold → no ink detected. Fail loudly
+        # instead of silently saving a fully-transparent PNG.
+        raise ValueError(
+            "Не удалось распознать подпись: не удалось отделить чернила от фона. "
+            "Используйте более контрастное изображение или отключите удаление фона."
+        )
+    return result.crop(bbox)
 
 
 def get_signatures_dir() -> Path:
