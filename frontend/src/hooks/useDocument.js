@@ -35,6 +35,7 @@ export function useDocument() {
   const { t } = useI18n()
   const [pages, setPages] = useState([])   // array of data URLs / object URLs
   const [pageDims, setPageDims] = useState([])  // real pixel size {width,height} per page
+  const [loadId, setLoadId] = useState(0)  // bumps on every load — even same filename
   const [currentPage, setCurrentPage] = useState(0)
   const [scale, setScale] = useState(1.0)
   const [loading, setLoading] = useState(false)
@@ -60,6 +61,7 @@ export function useDocument() {
     setPageDims([])
     setCurrentPage(0)
     setFileName(file.name)
+    setLoadId((n) => n + 1)
 
     try {
       const arrayBuffer = await file.arrayBuffer()
@@ -101,7 +103,7 @@ export function useDocument() {
   }, [pages.length])
 
   return {
-    pages, pageDims, currentPage, scale, loading, error, fileName,
+    pages, pageDims, loadId, currentPage, scale, loading, error, fileName,
     setScale, goTo, loadFile,
     totalPages: pages.length,
   }

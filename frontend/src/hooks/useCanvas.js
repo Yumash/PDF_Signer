@@ -25,9 +25,5 @@ export function useCanvas(initialLayers = []) {
     push(layers.filter((l) => l.id !== id))
   }, [layers, push])
 
-  const copyToAllPages = useCallback((totalPages) => {
-    return Array.from({ length: totalPages }, () => [...layers])
-  }, [layers])
-
-  return { layers, addSignature, updateLayer, removeLayer, copyToAllPages, undo, redo, canUndo, canRedo }
+  return { layers, addSignature, updateLayer, removeLayer, undo, redo, canUndo, canRedo }
 }

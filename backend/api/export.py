@@ -80,7 +80,11 @@ async def export_document(
         delete_list = json.loads(delete_pages)
     except (json.JSONDecodeError, ValueError):
         raise ApiError("invalid_pages_payload", "Invalid pages payload.")
-    delete_list = [int(i) for i in delete_list if isinstance(i, (int, float))]
+    delete_list = [
+        i
+        for i in delete_list
+        if isinstance(i, int) and not isinstance(i, bool) and i >= 0
+    ]
     data = await file.read()
     if len(data) > pdf_service.MAX_FILE_SIZE:
         raise ApiError("file_too_large", "File exceeds the size limit.", 413)

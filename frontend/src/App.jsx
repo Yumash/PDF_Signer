@@ -49,7 +49,7 @@ export default function App() {
     layersByPageRef.current = {}
     setHasSigs(false)
     setDeletedPages(new Set())
-  }, [doc.fileName])
+  }, [doc.loadId])
 
   const toggleDeletePage = () => {
     setDeletedPages((prev) => {
@@ -90,7 +90,10 @@ export default function App() {
     const cur = layersByPageRef.current[doc.currentPage] || []
     if (cur.length === 0) return
     for (let i = 0; i < doc.totalPages; i++) {
-      layersByPageRef.current[i] = cur.map((l) => ({ ...l, id: `${l.sigId}-p${i}-${Date.now()}` }))
+      if (deletedPages.has(i)) continue  // don't sign pages excluded from export
+      // Unique id per (page, layer index) — avoids duplicate React keys when the
+      // same signature appears more than once.
+      layersByPageRef.current[i] = cur.map((l, j) => ({ ...l, id: `${l.sigId}-p${i}-${j}` }))
     }
     setHasSigs(true)
     setEditorKey((k) => k + 1)
