@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { useI18n } from '../i18n/index.jsx'
+import { FALLBACK_DIMS } from '../constants'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
 
@@ -18,9 +19,6 @@ const SUPPORTED_EXTS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.tif'
 function getExt(name) {
   return name.slice(name.lastIndexOf('.')).toLowerCase()
 }
-
-// Fallback dimensions (A4 @ ~96dpi) used only when an image fails to load.
-const FALLBACK_DIMS = { width: 794, height: 1123 }
 
 function loadImageDims(url) {
   return new Promise((resolve) => {

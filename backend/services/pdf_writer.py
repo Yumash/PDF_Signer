@@ -6,6 +6,7 @@ from pathlib import Path
 import fitz
 from PIL import Image
 
+from constants import STAGE_FALLBACK_H, STAGE_FALLBACK_W
 from services.composer import compose_page
 from services.pdf_service import ensure_render_safe
 from services.signature_service import get_signatures_dir
@@ -25,7 +26,10 @@ def export_pdf(
     page_map = {p["page_idx"]: p["signatures"] for p in pages_payload}
 
     stage_map = {
-        p["page_idx"]: (p.get("stage_w", 794), p.get("stage_h", 1123))
+        p["page_idx"]: (
+            p.get("stage_w", STAGE_FALLBACK_W),
+            p.get("stage_h", STAGE_FALLBACK_H),
+        )
         for p in pages_payload
     }
     jitter_map = {p["page_idx"]: p.get("jitter", 0) for p in pages_payload}
@@ -36,7 +40,7 @@ def export_pdf(
         if i in page_map and page_map[i]:
             pix = page.get_pixmap(dpi=200)
             img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-            stage_w, stage_h = stage_map.get(i, (794, 1123))
+            stage_w, stage_h = stage_map.get(i, (STAGE_FALLBACK_W, STAGE_FALLBACK_H))
             sx = pix.width / stage_w
             sy = pix.height / stage_h
             scaled_sigs = [

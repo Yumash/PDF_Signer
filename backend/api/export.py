@@ -6,6 +6,7 @@ from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import Response
 from PIL import Image
 
+from constants import STAGE_FALLBACK_H, STAGE_FALLBACK_W
 from errors import ApiError, DomainError
 from services import pdf_service
 from services.pdf_writer import export_pdf, save_output
@@ -112,8 +113,8 @@ async def export_document(
                 # that same space, so bounds must be checked against it — NOT
                 # against page.rect (a different unit) which produced both false
                 # rejections (small pages) and false passes (large pages).
-                stage_w = p.get("stage_w", 794)
-                stage_h = p.get("stage_h", 1123)
+                stage_w = p.get("stage_w", STAGE_FALLBACK_W)
+                stage_h = p.get("stage_h", STAGE_FALLBACK_H)
                 sigs = p["signatures"]
                 if sigs:
                     rect = doc[idx].rect

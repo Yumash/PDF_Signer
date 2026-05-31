@@ -5,6 +5,7 @@ import { useSignatures } from './hooks/useSignatures'
 import { CanvasEditor } from './components/CanvasEditor'
 import { LanguageSwitcher } from './i18n/LanguageSwitcher'
 import { useI18n, resolveApiError } from './i18n/index.jsx'
+import { FALLBACK_DIMS } from './constants'
 
 const ALLOWED = '.pdf,.jpg,.jpeg,.png,.tiff,.tif,.webp'
 
@@ -114,7 +115,7 @@ export default function App() {
         .map(Number)
         .filter((idx) => byPage[idx] && byPage[idx].length > 0 && !deletedPages.has(idx))
         .map((idx) => {
-          const dims = doc.pageDims[idx] || { width: 794, height: 1123 }
+          const dims = doc.pageDims[idx] || FALLBACK_DIMS
           return {
             page_idx: idx,
             stage_w: dims.width,
@@ -158,7 +159,7 @@ export default function App() {
   const docLoaded = doc.totalPages > 0
   // Real pixel size of the current page; the Konva stage and the export payload
   // both use it so the page aspect ratio is preserved (backend sx == sy).
-  const pageDims = doc.pageDims[doc.currentPage] || { width: 794, height: 1123 }
+  const pageDims = doc.pageDims[doc.currentPage] || FALLBACK_DIMS
 
   // Step progress: 1=open doc, 2=upload sig, 3=drag to doc, 4=export
   const step = !docLoaded ? 1 : sigs.signatures.length === 0 ? 2 : !hasSigs ? 3 : 4
