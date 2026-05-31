@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react'
 import { Stage, Layer, Image as KonvaImage, Transformer } from 'react-konva'
 import { useCanvas } from '../hooks/useCanvas'
 import { useI18n } from '../i18n/index.jsx'
+import { MIN_LAYER_SIZE, DROP_MAX_WIDTH_FRACTION } from '../constants'
 
 function PageBackground({ dataUrl, width, height }) {
   const [img, setImg] = useState(null)
@@ -51,8 +52,8 @@ function SignatureNode({ layer, isSelected, onSelect, onChange, imageUrl }) {
           const node = e.target
           onChange(layer.id, {
             x: node.x(), y: node.y(),
-            width: Math.max(20, node.width() * node.scaleX()),
-            height: Math.max(20, node.height() * node.scaleY()),
+            width: Math.max(MIN_LAYER_SIZE, node.width() * node.scaleX()),
+            height: Math.max(MIN_LAYER_SIZE, node.height() * node.scaleY()),
             rotation: node.rotation(),
           })
           node.scaleX(1)
@@ -62,8 +63,8 @@ function SignatureNode({ layer, isSelected, onSelect, onChange, imageUrl }) {
       {isSelected && (
         <Transformer ref={trRef} keepRatio rotateEnabled boundBoxFunc={(old, nw) => ({
           ...nw,
-          width: Math.max(20, nw.width),
-          height: Math.max(20, nw.height),
+          width: Math.max(MIN_LAYER_SIZE, nw.width),
+          height: Math.max(MIN_LAYER_SIZE, nw.height),
         })} />
       )}
     </>
@@ -114,10 +115,10 @@ export function CanvasEditor({ pageDataUrl, pageWidth = 794, pageHeight = 1123, 
     img.src = imageUrl(sig.id)
     img.onload = () => {
       if (!img.naturalWidth) { addSignature(sig, dropX, dropY); return }
-      const maxW = pageWidth * 0.25
+      const maxW = pageWidth * DROP_MAX_WIDTH_FRACTION
       const scale = Math.min(maxW / img.naturalWidth, 1)
-      const w = Math.max(20, Math.round(img.naturalWidth * scale))
-      const h = Math.max(20, Math.round(img.naturalHeight * scale))
+      const w = Math.max(MIN_LAYER_SIZE, Math.round(img.naturalWidth * scale))
+      const h = Math.max(MIN_LAYER_SIZE, Math.round(img.naturalHeight * scale))
       addSignature(sig, dropX - w / 2, dropY - h / 2, w, h)
     }
     img.onerror = () => addSignature(sig, dropX, dropY)

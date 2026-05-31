@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { useHistory } from './useHistory'
+import { MIN_LAYER_SIZE } from '../constants'
 
 export function useCanvas(initialLayers = []) {
   const { state: layers, push, set, undo, redo, canUndo, canRedo } = useHistory(initialLayers)
@@ -9,8 +10,8 @@ export function useCanvas(initialLayers = []) {
       id: `${sig.id}-${Date.now()}`,
       sigId: sig.id,
       x, y,
-      width: Math.max(20, width),
-      height: Math.max(20, height),
+      width: Math.max(MIN_LAYER_SIZE, width),
+      height: Math.max(MIN_LAYER_SIZE, height),
       rotation: 0,
       opacity: 1,
     }])

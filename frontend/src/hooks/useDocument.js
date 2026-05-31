@@ -2,11 +2,10 @@ import { useState, useCallback, useRef } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { useI18n } from '../i18n/index.jsx'
-import { FALLBACK_DIMS } from '../constants'
+import { FALLBACK_DIMS, MAX_FILE_SIZE, PDF_RENDER_SCALE } from '../constants'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024
 const SUPPORTED_TYPES = new Set([
   'application/pdf',
   'image/jpeg',
@@ -75,7 +74,7 @@ export function useDocument() {
         const dims = []
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i)
-          const viewport = page.getViewport({ scale: 1.5 })
+          const viewport = page.getViewport({ scale: PDF_RENDER_SCALE })
           const canvas = document.createElement('canvas')
           canvas.width = viewport.width
           canvas.height = viewport.height
