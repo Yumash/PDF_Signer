@@ -48,6 +48,9 @@ export const en = {
   'history.selectAll': 'Select all',
   'history.pages': '{n} pp.',
 
+  'demo.banner':
+    'Demo mode — your signatures and documents stay in this browser only. Nothing is stored on the server.',
+
   'backend.title': 'Service failed to start',
   'backend.message':
     'Could not reach the local processing service. Wait a moment and try again.',
@@ -96,4 +99,8 @@ export const en = {
   'error.no_pages_left': 'No pages left after deletion.',
   'error.history_load_failed': 'Could not load the signing history.',
   'error.history_not_found': 'History entry not found.',
+  'error.signatures_data_too_large': 'Too much signature data sent. Use fewer or smaller signatures.',
+  'error.invalid_signatures_data': 'Invalid signature data.',
+  'error.too_many_signatures': 'Too many signatures.',
+  'error.demo_quota': 'Browser storage is full. Delete some signatures or history entries and try again.',
 }

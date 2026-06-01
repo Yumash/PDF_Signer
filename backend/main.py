@@ -1,12 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.config import router as config_router
 from api.document import router as document_router
 from api.export import router as export_router
 from api.signatures import router as signatures_router
 from api.history import router as history_router
+from constants import APP_VERSION
 
-app = FastAPI(title="PDF Signer API", version="1.1.0")
+app = FastAPI(title="PDF Signer API", version=APP_VERSION)
 
 # The browser deployment talks to the API same-origin through the nginx proxy,
 # so CORS is only needed for the dev server and the Tauri webview. Restrict to
@@ -39,6 +41,7 @@ async def _api_security_headers(request, call_next):
     return response
 
 
+app.include_router(config_router)
 app.include_router(document_router)
 app.include_router(signatures_router)
 app.include_router(export_router)

@@ -77,6 +77,18 @@ docker compose up
 
 Подписи сохраняются в `./data/signatures/` и не пропадают между перезапусками.
 
+#### Публичное демо (ничего не хранится на сервере)
+
+Для публичного демо запустите stateless-режим: подписи и документы обрабатываются в памяти, а единственная копия остаётся в браузере посетителя (IndexedDB). На сервере не сохраняется ничего, том данных не монтируется.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up
+```
+
+Каждый посетитель полностью изолирован, чужие файлы на сервере не накапливаются. В интерфейсе показывается баннер демо-режима. Обычный `docker compose up` (без второго файла) остаётся полностью персистентным.
+
+Полное руководство (HTTPS/reverse-proxy, проверка, обновление, диагностика): [docs/DEMO.ru.md](docs/DEMO.ru.md).
+
 > 🖥️ Нативная сборка (Tauri) для Windows / macOS / Linux — `scripts/build-exe.sh`
 > собирает под текущую ОС; инструкции и пререквизиты в
 > [docs/DEVELOPMENT.ru.md](docs/DEVELOPMENT.ru.md#деплой). Windows-first
@@ -171,6 +183,18 @@ Open in browser: **http://localhost:8080**
 > 🌐 **Live demo:** [https://tinacodes.space](https://tinacodes.space)
 
 Signatures are stored in `./data/signatures/` and persist across restarts.
+
+#### Public demo (nothing stored on the server)
+
+For a public demo, run the stateless mode: signatures and documents are processed in memory and the only copy stays in the visitor's browser (IndexedDB). The server persists nothing and no data volume is mounted.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up
+```
+
+Every visitor is fully isolated and no one else's files accumulate on the server. The UI shows a demo-mode banner. A plain `docker compose up` (without the second file) stays fully persistent.
+
+Full guide (HTTPS/reverse proxy, verification, updating, troubleshooting): [docs/DEMO.en.md](docs/DEMO.en.md).
 
 > 🖥️ Native (Tauri) builds for Windows / macOS / Linux — `scripts/build-exe.sh`
 > builds for the host OS; instructions and prerequisites in

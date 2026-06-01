@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
+from constants import is_demo_mode
 from errors import ApiError
 from services.history_service import (
     list_entries,
@@ -26,6 +27,10 @@ _MEDIA = {
 
 @router.get("")
 def get_history():
+    # Demo mode keeps the signing history in the browser — nothing is persisted
+    # server-side, so there is never anything to list.
+    if is_demo_mode():
+        return []
     return list_entries()
 
 

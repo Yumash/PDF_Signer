@@ -30,18 +30,45 @@ def _jitter_params(sig_id: str, index: int, intensity: float, page: int = 0):
     return (d_angle, scale_mult, opacity_mult, dx, dy)
 
 
+def _resolve_sig_image(
+    sig_id: str,
+    sig_dir: Path | None,
+    sig_images: dict[str, Image.Image] | None,
+) -> Image.Image | None:
+    """Source signature image for a placement, or None to skip it.
+
+    Demo mode passes `sig_images` (id -> already-decoded PIL image, sent inline
+    with the export request, since the server stores nothing); otherwise the
+    image is read from sig_dir/{id}.png on disk. A missing id in either source
+    returns None so the placement is skipped — exactly as the original disk path
+    did for a missing file.
+    """
+    if sig_images is not None:
+        return sig_images.get(sig_id)
+    if sig_dir is not None:
+        path = sig_dir / f"{sig_id}.png"
+        if path.exists():
+            return Image.open(path)
+    return None
+
+
 def compose_page(
     page_img: Image.Image,
     signatures: list[dict],
-    sig_dir: Path,
+    sig_dir: Path | None = None,
     jitter: float = 0.0,
     page_index: int = 0,
+    sig_images: dict[str, Image.Image] | None = None,
 ) -> Image.Image:
     """Overlay signatures onto a page image. Returns RGB image with white
     background. Uniquification is per signature: each sig may carry its own
     `jitter` (0..1); the `jitter` argument is only the fallback for signatures
     that don't specify one. `page_index` makes the variation distinct across
-    pages."""
+    pages.
+
+    Signature pixels come from `sig_dir` (disk, normal mode) or, when
+    `sig_images` is provided, from that {id: Image} map (demo mode, sent inline
+    with the request)."""
     base = Image.new("RGB", page_img.size, (255, 255, 255))
     if page_img.mode == "RGBA":
         base.paste(page_img.convert("RGB"), mask=page_img.split()[3])
@@ -53,8 +80,8 @@ def compose_page(
         # Defense-in-depth: never build a path from a non-UUID id.
         if not is_valid_sig_id(sig.get("id")):
             continue
-        sig_path = sig_dir / f"{sig['id']}.png"
-        if not sig_path.exists():
+        src_img = _resolve_sig_image(sig["id"], sig_dir, sig_images)
+        if src_img is None:
             continue
 
         # Per-instance uniquification: prefer the signature's own jitter, falling
@@ -68,7 +95,7 @@ def compose_page(
             sig["id"], index, intensity, page_index
         )
 
-        sig_img = Image.open(sig_path).convert("RGBA")
+        sig_img = src_img.convert("RGBA")
 
         w = max(1, round(int(sig["w"]) * scale_mult))
         h = max(1, round(int(sig["h"]) * scale_mult))

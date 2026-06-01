@@ -13,9 +13,28 @@ from pathlib import Path
 STAGE_FALLBACK_W = 794
 STAGE_FALLBACK_H = 1123
 
+# Single source of truth for the backend's reported version (FastAPI app +
+# /api/config). The frontend carries its own __APP_VERSION__ from package.json.
+APP_VERSION = "1.1.0"
+
+# Values that turn DEMO_MODE on. Anything else — including a typo — stays off.
+_DEMO_TRUE = {"1", "true", "yes", "on"}
+
+
+def is_demo_mode() -> bool:
+    """True when the server runs as a stateless public demo (DEMO_MODE env).
+
+    In demo mode the server persists nothing: signatures and signed documents
+    are processed in memory and the browser keeps the only copy. Read at call
+    time (not bound at import) so the Docker demo override and tests take effect
+    without a re-import. A malformed value is treated as off, so a typo can never
+    silently turn a real deployment into a data-discarding demo.
+    """
+    return os.environ.get("DEMO_MODE", "").strip().lower() in _DEMO_TRUE
+
 
 def get_data_dir() -> Path:
-    """Root directory for persisted data (uploaded signatures, exported docs).
+    r"""Root directory for persisted data (uploaded signatures, exported docs).
 
     Resolution order:
       1. DATA_DIR env var — the normal path for both deployments: the Tauri host

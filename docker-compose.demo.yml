@@ -1,0 +1,18 @@
+# Demo override — stateless public deployment.
+#
+# Run the public demo with:
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up
+#
+# DEMO_MODE=1 makes the backend persist nothing: signatures and signed documents
+# are processed in memory and the browser (IndexedDB) keeps the only copy. No
+# data volume is mounted, so visitors are fully isolated and nothing accumulates
+# on the server. The plain `docker compose up` (without this file) stays the
+# normal, fully-persistent deployment.
+services:
+  backend:
+    environment:
+      - DEMO_MODE=1
+    # Drop the persistent data mount from the base file. Compose MERGES volume
+    # lists, so an empty list is a no-op — the `!reset` tag is required to
+    # actually clear it. The demo writes nothing to disk.
+    volumes: !reset []

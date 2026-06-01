@@ -51,6 +51,11 @@ burns signatures into the output file. The original document is never modified.
 Base: `/api`. Errors use `{ "detail": { "code": "<stable_code>", "message": "<english>" } }`.
 The frontend maps `code` to a localized message.
 
+### `GET /api/config`
+Returns `{ "demo_mode": bool, "version": "<x.y.z>" }`. The static frontend bundle
+fetches this at startup (it cannot read env vars) to learn whether the server is
+a stateless public demo. See **Demo mode** below.
+
 ### `POST /api/document/render`
 Form: `file`. Returns `{ "page_count": n, "pages": ["<base64 png>", ...] }`.
 Errors: `unsupported_file_type` (422), `file_too_large` (413), `too_many_pages`,
@@ -95,6 +100,15 @@ Returns `{ "status": "ok", "service": "pdf-signer-api" }`.
   (reversible toggle; not a destructive edit of the source).
 - **Limits** (anti-DoS): `MAX_FILE_SIZE` 50 MB, `MAX_PAGES` 500,
   `MAX_PIXMAP_PIXELS` ~64 MP, Pillow decompression-bomb guard.
+- **Demo mode** (`DEMO_MODE=1`, `constants.is_demo_mode()`): the server persists
+  nothing. `POST /api/signatures` runs background removal in memory and returns
+  the PNG inline as base64 (no disk write); the listing/image/rename/delete
+  endpoints and `GET /api/history` are inert (`[]` / 404). `POST /api/export`
+  takes the signature pixels from a `signatures_data` form field (JSON
+  `{ id: base64png }`, capped at `MAX_SIGNATURES_DATA_BYTES` → 413 and
+  `MAX_INLINE_SIGS`) and skips both the output copy and the history entry. The
+  browser (`lib/demoStore.js`, IndexedDB) keeps the only copy of the library and
+  history. A malformed value of `DEMO_MODE` is treated as off (fail-safe).
 
 ## Development
 
@@ -131,6 +145,11 @@ push to main and on pull requests.
 - **Docker** (recommended): `docker compose up` → http://localhost:8080. The
   backend is reached only via the nginx proxy (no host port); containers run
   non-root; `/data` is a named volume.
+- **Public demo (stateless)**: `docker compose -f docker-compose.yml -f
+  docker-compose.demo.yml up`. The override sets `DEMO_MODE=1` and drops the data
+  volume (via the `!reset` merge tag — an empty list would merge, not replace),
+  so the server stores nothing and visitors are isolated; the browser keeps the
+  only copy. Plain `docker compose up` stays fully persistent.
 - **Native app (Tauri)**: `scripts/build-exe.sh` builds for the **host OS** and
   collects the installers into **`./release/`**. It builds the FastAPI sidecar
   (PyInstaller from `backend/api_server.spec`), places it under the Rust target

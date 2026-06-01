@@ -14,6 +14,7 @@
 | Документ | Описание |
 |---|---|
 | [DEVELOPMENT.ru.md](DEVELOPMENT.ru.md) | Руководство разработчика: архитектура, API, сборка (Windows/macOS/Linux), тесты |
+| [DEMO.ru.md](DEMO.ru.md) | Развёртывание публичного демо (stateless, ничего не хранится на сервере) |
 | [PDF_Signer_TZ_v1.0.pdf](PDF_Signer_TZ_v1.0.pdf) | Техническое задание |
 
 Корневые документы: [README](../README.md#русский) · [CHANGELOG](../CHANGELOG.md#русский)
@@ -30,6 +31,7 @@ root (GitHub convention); the detailed material is here.
 | Document | Description |
 |---|---|
 | [DEVELOPMENT.en.md](DEVELOPMENT.en.md) | Developer guide: architecture, API, builds (Windows/macOS/Linux), testing |
+| [DEMO.en.md](DEMO.en.md) | Public demo deployment (stateless — nothing stored on the server) |
 | [PDF_Signer_TZ_v1.0.pdf](PDF_Signer_TZ_v1.0.pdf) | Specification (Russian) |
 
 Root documents: [README](../README.md#english) · [CHANGELOG](../CHANGELOG.md#english)

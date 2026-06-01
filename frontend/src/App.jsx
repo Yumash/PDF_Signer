@@ -8,8 +8,10 @@ import { SignatureLibrary } from './components/SignatureLibrary'
 import { AboutModal } from './components/AboutModal'
 import { HistoryModal } from './components/HistoryModal'
 import { LanguageSwitcher } from './i18n/LanguageSwitcher'
+import { DemoBanner } from './components/DemoBanner'
 import { useI18n, resolveApiError } from './i18n/index.jsx'
 import { FALLBACK_DIMS, getApiBase } from './constants'
+import { isDemoMode } from './lib/config'
 import { buildExportPayload, signAllPages } from './lib/exportPayload'
 
 const ALLOWED = '.pdf,.jpg,.jpeg,.png,.tiff,.tif,.webp'
@@ -145,9 +147,17 @@ export default function App() {
   const handleReopen = useCallback(async (entryId) => {
     try {
       const meta = await history.getEntry(entryId)
-      const res = await fetch(`${getApiBase()}/api/history/${entryId}/original`)
-      if (!res.ok) throw new Error(t('error.history_load_failed'))
-      const blob = await res.blob()
+      // Demo keeps the original document Blob in the browser store; otherwise
+      // fetch it back from the server-side history.
+      let blob
+      if (isDemoMode()) {
+        blob = meta.originalBlob
+        if (!blob) throw new Error(t('error.history_load_failed'))
+      } else {
+        const res = await fetch(`${getApiBase()}/api/history/${entryId}/original`)
+        if (!res.ok) throw new Error(t('error.history_load_failed'))
+        blob = await res.blob()
+      }
       const file = new File([blob], meta.filename || 'document', { type: blob.type })
       const layers = {}
       for (const p of meta.pages || []) {
@@ -189,6 +199,12 @@ export default function App() {
       form.append('file', sourceFileRef.current)
       form.append('pages', JSON.stringify(pagesPayload))
       form.append('delete_pages', JSON.stringify([...deletedPages]))
+      // Demo: the server has no signature store, so ship the pixels of the
+      // unique signatures placed inline with the request.
+      if (isDemoMode()) {
+        const usedIds = [...new Set(pagesPayload.flatMap((p) => p.signatures.map((s) => s.id)))]
+        form.append('signatures_data', JSON.stringify(await sigs.getSignatureData(usedIds)))
+      }
 
       const res = await fetch(`${getApiBase()}/api/export`, { method: 'POST', body: form })
       if (!res.ok) {
@@ -206,8 +222,18 @@ export default function App() {
       a.click()
       // Defer revoke so the download isn't cancelled in some browsers.
       setTimeout(() => URL.revokeObjectURL(url), 1000)
-      // The export persisted a history entry server-side — refresh the list.
-      history.reload()
+      // Normal mode persisted a history entry server-side — refresh the list.
+      // Demo mode has no server store, so record the entry in the browser.
+      if (isDemoMode()) {
+        await history.addEntry({
+          file: sourceFileRef.current,
+          resultBlob: blob,
+          pages: pagesPayload,
+          deletePages: [...deletedPages],
+        })
+      } else {
+        history.reload()
+      }
     } catch (e) {
       setExportError(e.message)
     } finally {
@@ -244,6 +270,8 @@ export default function App() {
 
       {/* Center */}
       <div className="flex-1 flex flex-col overflow-hidden">
+
+        {isDemoMode() && <DemoBanner />}
 
         {/* Toolbar */}
         <header className="flex items-center gap-2 px-4 py-2 bg-white border-b shadow-sm text-sm flex-shrink-0">

@@ -17,6 +17,10 @@ MAX_SIGS_PER_PAGE = 100  # reject absurd signature counts per page (DoS)
 # multipart part limit so this explicit 413 fires first; legit payloads (a few
 # pages × a few signatures) are a few KB.
 MAX_PAGES_JSON_BYTES = 512 * 1024
+# Cap the demo-mode inline `signatures_data` part before decoding (DoS). Kept
+# under Starlette's ~1MB multipart part limit so this explicit 413 fires first;
+# legit payloads (a few cropped-ink PNGs as base64) are well under this.
+MAX_SIGNATURES_DATA_BYTES = 900 * 1024
 RENDER_DPI = 200
 MAX_PIXMAP_PIXELS = 64_000_000  # ~8000x8000 — cap rasterised page area (bomb)
 

@@ -13,22 +13,28 @@ from services.signature_service import get_signatures_dir
 
 
 def export_pdf(
-    pdf_data: bytes, pages_payload: list[dict], delete_pages: list[int] | None = None
+    pdf_data: bytes,
+    pages_payload: list[dict],
+    delete_pages: list[int] | None = None,
+    sig_images: dict | None = None,
 ) -> bytes:
     """Burn signatures into PDF pages, return new PDF bytes. Pages whose original
-    index is in `delete_pages` are omitted from the output."""
+    index is in `delete_pages` are omitted from the output. In demo mode the
+    signature pixels arrive via `sig_images` ({id: Image}) instead of disk."""
     src = fitz.open(stream=pdf_data, filetype="pdf")
     out = fitz.open()
     try:
-        return _build_pdf(src, out, pages_payload, set(delete_pages or []))
+        return _build_pdf(src, out, pages_payload, set(delete_pages or []), sig_images)
     finally:
         out.close()
         src.close()
 
 
-def _build_pdf(src, out, pages_payload, delete_set) -> bytes:
+def _build_pdf(src, out, pages_payload, delete_set, sig_images=None) -> bytes:
     ensure_render_safe(src)  # defense-in-depth: cap pages / pixmap area
-    sig_dir = get_signatures_dir()
+    # Demo mode resolves signatures from the inline map, so the disk dir is never
+    # touched (and never created).
+    sig_dir = None if sig_images is not None else get_signatures_dir()
 
     page_map = {p["page_idx"]: p["signatures"] for p in pages_payload}
 
@@ -61,7 +67,12 @@ def _build_pdf(src, out, pages_payload, delete_set) -> bytes:
                 for s in page_map[i]
             ]
             composed = compose_page(
-                img, scaled_sigs, sig_dir, jitter=jitter_map.get(i, 0), page_index=i
+                img,
+                scaled_sigs,
+                sig_dir,
+                jitter=jitter_map.get(i, 0),
+                page_index=i,
+                sig_images=sig_images,
             )
 
             buf = io.BytesIO()

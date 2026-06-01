@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { BackendError } from './components/BackendError.jsx'
 import { I18nProvider } from './i18n/index.jsx'
 import { resolveApiBase, waitForBackend, inTauri } from './constants'
+import { resolveConfig } from './lib/config'
 
 // Create the root once; boot() re-renders into it on retry.
 const root = createRoot(document.getElementById('root'))
@@ -23,6 +24,9 @@ const render = (child) =>
 // failure we mount a blocking error screen instead of a silently-broken UI.
 async function boot() {
   await resolveApiBase()
+  // Learn the server mode (demo vs normal) before mounting so hooks branch
+  // correctly on first render. Never throws — defaults to normal mode.
+  await resolveConfig()
   const ready = inTauri() ? await waitForBackend() : true
   render(ready ? <App /> : <BackendError onRetry={boot} />)
 }

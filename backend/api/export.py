@@ -7,12 +7,16 @@ from fastapi import APIRouter, UploadFile, File, Form
 from fastapi.responses import Response
 from PIL import Image
 
-from constants import STAGE_FALLBACK_H, STAGE_FALLBACK_W
+from constants import STAGE_FALLBACK_H, STAGE_FALLBACK_W, is_demo_mode
 from errors import ApiError, DomainError
 from services import pdf_service
 from services.pdf_writer import export_pdf, save_output
 from services.composer import compose_page
-from services.signature_service import get_signatures_dir, is_valid_sig_id
+from services.signature_service import (
+    decode_inline_signatures,
+    get_signatures_dir,
+    is_valid_sig_id,
+)
 from services.history_service import save_entry
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -160,6 +164,7 @@ async def export_document(
     file: UploadFile = File(...),
     pages: str = Form(...),
     delete_pages: str = Form("[]"),
+    signatures_data: str = Form("{}"),
 ):
     # Cap the raw body before parsing — a huge `pages` string is a cheap,
     # unauthenticated DoS vector (O(n) parse + O(n·m) validation otherwise).
@@ -170,6 +175,20 @@ async def export_document(
         delete_list = json.loads(delete_pages)
     except (json.JSONDecodeError, ValueError):
         raise ApiError("invalid_pages_payload", "Invalid pages payload.")
+
+    # Demo mode: the browser owns the signatures and ships their pixels inline,
+    # so the server composes from `signatures_data` and persists nothing.
+    demo = is_demo_mode()
+    sig_images = None
+    if demo:
+        if len(signatures_data) > pdf_service.MAX_SIGNATURES_DATA_BYTES:
+            raise ApiError(
+                "signatures_data_too_large", "Inline signatures payload too large.", 413
+            )
+        try:
+            sig_images = decode_inline_signatures(signatures_data)
+        except DomainError as e:
+            raise ApiError(e.code, e.message)
     if not isinstance(delete_list, list):
         raise ApiError("invalid_pages_payload", "Invalid pages payload.")
     delete_list = [
@@ -222,16 +241,19 @@ async def export_document(
         finally:
             doc.close()
 
-        result_bytes = export_pdf(data, pages_payload, delete_pages=delete_list)
-        _persist_copy(result_bytes, "pdf")
-        _save_history(
-            data,
-            result_bytes,
-            filename=file.filename or "document.pdf",
-            ext="pdf",
-            pages_payload=pages_payload,
-            delete_list=delete_list,
+        result_bytes = export_pdf(
+            data, pages_payload, delete_pages=delete_list, sig_images=sig_images
         )
+        if not demo:
+            _persist_copy(result_bytes, "pdf")
+            _save_history(
+                data,
+                result_bytes,
+                filename=file.filename or "document.pdf",
+                ext="pdf",
+                pages_payload=pages_payload,
+                delete_list=delete_list,
+            )
         return Response(
             content=result_bytes,
             media_type="application/pdf",
@@ -280,23 +302,25 @@ async def export_document(
         composed = compose_page(
             img,
             scaled_sigs,
-            get_signatures_dir(),
+            None if demo else get_signatures_dir(),
             jitter=page_info.get("jitter", 0),
             page_index=page_info.get("page_idx", 0),
+            sig_images=sig_images,
         )
         fmt, media_type, out_ext = IMAGE_OUTPUT[ext]
         buf = io.BytesIO()
         composed.convert("RGB").save(buf, format=fmt)
         result_bytes = buf.getvalue()
-        _persist_copy(result_bytes, out_ext.lstrip("."))
-        _save_history(
-            data,
-            result_bytes,
-            filename=file.filename or f"document{out_ext}",
-            ext=out_ext.lstrip("."),
-            pages_payload=pages_payload,
-            delete_list=delete_list,
-        )
+        if not demo:
+            _persist_copy(result_bytes, out_ext.lstrip("."))
+            _save_history(
+                data,
+                result_bytes,
+                filename=file.filename or f"document{out_ext}",
+                ext=out_ext.lstrip("."),
+                pages_payload=pages_payload,
+                delete_list=delete_list,
+            )
         return Response(
             content=result_bytes,
             media_type=media_type,

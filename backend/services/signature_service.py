@@ -1,3 +1,4 @@
+import base64
 import io
 import json
 import os
@@ -12,6 +13,12 @@ from PIL import Image
 from constants import get_data_dir
 from errors import DomainError
 from services.pdf_service import ensure_image_safe
+
+
+# Demo export sends the signature pixels inline (the server stores nothing), so
+# cap the unique-signature count. The raw payload byte-cap lives in the export
+# endpoint (MAX_SIGNATURES_DATA_BYTES) next to the other request byte-caps.
+MAX_INLINE_SIGS = 100
 
 
 SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".tiff", ".tif", ".webp"}
@@ -180,7 +187,15 @@ def rename_signature(sig_id: str, name: str) -> str | None:
     return cleaned
 
 
-def save_signature(filename: str, data: bytes, remove_bg: bool = True) -> dict:
+def _prepare_signature(
+    filename: str, data: bytes, remove_bg: bool
+) -> tuple[Image.Image, str, str]:
+    """Validate, decode and (optionally) background-remove an uploaded signature.
+
+    Returns (rgba_image, sig_id, default_name). Shared by the disk-persisting
+    save_signature and the in-memory process_signature (demo mode) so both paths
+    apply identical validation and ink/paper separation.
+    """
     ext = Path(filename).suffix.lower()
     if ext not in SUPPORTED_EXTS:
         raise DomainError("unsupported_signature_format", f"Unsupported format: {ext}")
@@ -196,12 +211,18 @@ def save_signature(filename: str, data: bytes, remove_bg: bool = True) -> dict:
     img = img.convert("RGBA")
 
     sig_id = str(uuid.uuid4())
-    out_path = get_signatures_dir() / f"{sig_id}.png"
-    img.save(out_path, format="PNG")
-
     # Default display name = the original upload's base name, so the library is
     # readable before the user renames anything.
     default_name = _clean_name(Path(filename).stem)
+    return img, sig_id, default_name
+
+
+def save_signature(filename: str, data: bytes, remove_bg: bool = True) -> dict:
+    img, sig_id, default_name = _prepare_signature(filename, data, remove_bg)
+
+    out_path = get_signatures_dir() / f"{sig_id}.png"
+    img.save(out_path, format="PNG")
+
     if default_name:
         with _META_LOCK:
             meta = _load_meta()
@@ -214,6 +235,70 @@ def save_signature(filename: str, data: bytes, remove_bg: bool = True) -> dict:
         "size": out_path.stat().st_size,
         "name": default_name,
     }
+
+
+def process_signature(filename: str, data: bytes, remove_bg: bool = True) -> dict:
+    """Demo-mode counterpart to save_signature: the same validation and
+    background removal, but NOTHING is written to disk. The processed PNG is
+    returned as a base64 data URL so the browser becomes the only store.
+    """
+    img, sig_id, default_name = _prepare_signature(filename, data, remove_bg)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+
+    return {
+        "id": sig_id,
+        "name": default_name,
+        "image": f"data:image/png;base64,{b64}",
+    }
+
+
+def decode_inline_signatures(raw: str) -> dict[str, Image.Image]:
+    """Decode the demo-mode `signatures_data` payload into {id: RGBA Image}.
+
+    The payload is a JSON object mapping a signature id to a base64 PNG (a bare
+    base64 string or a `data:image/png;base64,...` URL). In demo mode the browser
+    owns the signatures and sends the pixels with the export request so the
+    server keeps nothing.
+
+    Two distinct failure modes, by design:
+      * Malformed payload, too many entries, or an oversized/decompression-bomb
+        image -> DomainError (the request is rejected). Fail-closed: an attack or
+        a genuinely too-large image surfaces as a clear error.
+      * A single corrupt or unknown-id entry -> skipped (the composer then skips
+        that placement, matching the disk path's "missing file -> skip").
+    """
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        raise DomainError("invalid_signatures_data", "Invalid signatures payload.")
+    if not isinstance(parsed, dict):
+        raise DomainError("invalid_signatures_data", "Invalid signatures payload.")
+    if len(parsed) > MAX_INLINE_SIGS:
+        raise DomainError("too_many_signatures", "Too many inline signatures.")
+
+    out: dict[str, Image.Image] = {}
+    for sig_id, value in parsed.items():
+        if not is_valid_sig_id(sig_id) or not isinstance(value, str):
+            continue  # unknown/invalid id -> placement skipped downstream
+        payload = value.split(",", 1)[1] if value.startswith("data:") else value
+        try:
+            data = base64.b64decode(payload, validate=True)
+            img = Image.open(io.BytesIO(data))
+            ensure_image_safe(img)
+            img.load()  # force decode so a bomb/corrupt entry fails here
+        except DomainError:
+            raise
+        except Image.DecompressionBombError:
+            raise DomainError("image_too_large", "Inline signature too large.")
+        except Exception:
+            continue  # corrupt single entry must not 500 the whole export
+        out[sig_id] = img.convert("RGBA")
+    return out
 
 
 def delete_signature(sig_id: str) -> bool:
