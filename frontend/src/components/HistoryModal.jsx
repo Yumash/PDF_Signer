@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useI18n } from '../i18n/index.jsx'
-import { getApiBase } from '../constants'
+import { saveBlob } from '../lib/download'
 
 // Format an ISO timestamp for display; fall back to the raw string if Date can't
 // parse it (never throw inside render).
@@ -9,21 +9,25 @@ function formatDate(iso) {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString()
 }
 
-// Trigger a browser download of an entry's signed result.
-function downloadResult(id, ext) {
-  const a = document.createElement('a')
-  a.href = `${getApiBase()}/api/history/${id}/result`
-  a.download = `signed.${ext || 'pdf'}`
-  a.click()
-}
-
 // Signing-history panel: list of past exports with checkbox multi-select. Each
 // entry can be reopened for editing (restores the original + placed signatures),
 // downloaded, or deleted. The toolbar deletes all selected entries at once.
 export function HistoryModal({ history, onReopen, onClose }) {
   const { t } = useI18n()
-  const { entries, loading, error, reload, remove, removeMany } = history
+  const { entries, loading, error, reload, remove, removeMany, getResultBlob } = history
   const [selected, setSelected] = useState(() => new Set())
+  const [dlError, setDlError] = useState(null)
+
+  // Save a past result via the native dialog (Tauri) or anchor download (web).
+  const handleDownload = async (entry) => {
+    setDlError(null)
+    try {
+      const blob = await getResultBlob(entry.id)
+      if (blob) await saveBlob(`signed.${entry.ext || 'pdf'}`, blob)
+    } catch (e) {
+      setDlError(e.message)
+    }
+  }
 
   // Refresh on open so a just-finished export shows up.
   useEffect(() => { reload() }, [reload])
@@ -89,6 +93,8 @@ export function HistoryModal({ history, onReopen, onClose }) {
           </div>
         )}
 
+        {dlError && <p className="px-5 py-2 text-red-500 text-sm border-b">{dlError}</p>}
+
         <div className="flex-1 overflow-y-auto">
           {loading && <p className="px-5 py-4 text-gray-400">{t('app.loadingDoc')}</p>}
           {error && <p className="px-5 py-4 text-red-500">{error}</p>}
@@ -120,7 +126,7 @@ export function HistoryModal({ history, onReopen, onClose }) {
                 {t('history.reopen')}
               </button>
               <button
-                onClick={() => downloadResult(e.id, e.ext)}
+                onClick={() => handleDownload(e)}
                 className="px-2.5 py-1 rounded border text-gray-600 hover:bg-gray-100"
               >
                 {t('history.download')}

@@ -43,6 +43,21 @@ export function useSigningHistory() {
     }
   }, [demo, t])
 
+  // The signed result as a Blob, for downloading. Demo keeps it in the browser
+  // store; normal mode fetches it from the server-side history.
+  const getResultBlob = useCallback(
+    async (id) => {
+      if (demo) {
+        const entry = await getHistoryEntry(id)
+        return entry?.resultBlob || null
+      }
+      const res = await fetch(`${api()}/${id}/result`)
+      if (!res.ok) throw new Error(t('error.history_load_failed'))
+      return res.blob()
+    },
+    [demo, t],
+  )
+
   // Fetch one full entry, including the `pages` layout used to restore
   // signatures (and, in demo mode, the original document Blob).
   const getEntry = useCallback(
@@ -117,5 +132,5 @@ export function useSigningHistory() {
     load()
   }, [load])
 
-  return { entries, loading, error, reload: load, getEntry, remove, removeMany, addEntry }
+  return { entries, loading, error, reload: load, getEntry, getResultBlob, remove, removeMany, addEntry }
 }

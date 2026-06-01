@@ -21,6 +21,10 @@ tauri-build = { version = "2", features = [] }
 # capability (see capabilities/default.json), not a `tauri` feature.
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
+# Native Save dialog for exporting / downloading files (WebView2 ignores the
+# HTML <a download> trick, so the web download path is a no-op in the app).
+tauri-plugin-dialog = "2"
+base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

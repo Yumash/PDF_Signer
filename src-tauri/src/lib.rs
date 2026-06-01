@@ -1,5 +1,7 @@
+use base64::Engine as _;
 use std::net::TcpListener;
 use tauri::Manager;
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::ShellExt;
 
 // The TCP port the bundled FastAPI sidecar is listening on. Chosen dynamically
@@ -30,6 +32,30 @@ fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
     app.shell().open(url, None).map_err(|e| e.to_string())
 }
 
+// Save a file via a native OS dialog. The webview's HTML `<a download>` is a
+// no-op in WebView2, so exports / history downloads round-trip the bytes here:
+// the frontend sends base64, the user picks a path, and Rust writes it (full
+// disk access — no fs-plugin scope needed). Returns false if the user cancels.
+#[tauri::command]
+async fn save_file(app: tauri::AppHandle, default_name: String, b64: String) -> Result<bool, String> {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(b64.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let chosen = app
+        .dialog()
+        .file()
+        .set_file_name(&default_name)
+        .blocking_save_file();
+    match chosen {
+        Some(path) => {
+            let pb = path.into_path().map_err(|e| e.to_string())?;
+            std::fs::write(&pb, &bytes).map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+        None => Ok(false), // user cancelled
+    }
+}
+
 // Ask the OS for a free loopback port, then release it so the sidecar can bind.
 // Hardcoding 8000 broke the app whenever something else already held it (e.g.
 // another local service) — the sidecar failed to bind and every request became
@@ -49,8 +75,9 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(ApiPort(port))
-        .invoke_handler(tauri::generate_handler![api_port, open_external])
+        .invoke_handler(tauri::generate_handler![api_port, open_external, save_file])
         .setup(move |app| {
             // Show the app version in the window title (e.g. "PDF Signer 1.1.0").
             // The static title in tauri.conf.json is just the fallback; setting it
